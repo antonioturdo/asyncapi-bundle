@@ -61,6 +61,7 @@ final class TestKernel extends Kernel
             'router' => ['utf8' => true],
             'php_errors' => ['log' => true],
             'serializer' => ['enabled' => true],
+            'validation' => ['enabled' => true],
         ]);
 
         $container->extension('twig', []);
