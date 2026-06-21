@@ -70,6 +70,27 @@ final class AsyncApiKernelTest extends TestCase
         self::assertSame('array', $tripProperties['sights']['type'] ?? null);
     }
 
+    public function testValidationConstraintsAreReflectedInThePayloadSchema(): void
+    {
+        $kernel = new TestKernel(uniqid('t', true), false);
+        $kernel->boot();
+
+        $decoded = json_decode((string) $kernel->handle(Request::create('/asyncapi.json'))->getContent(), true);
+
+        $kernel->shutdown();
+
+        self::assertIsArray($decoded);
+        // TripReviewed's `comment` carries #[Assert\NotBlank] + #[Assert\Length].
+        $payload = $decoded['components']['messages']['TripReviewed']['payload'] ?? null;
+        self::assertIsArray($payload);
+
+        // The Symfony Validator enricher (wired only when the validator is present)
+        // reflected the constraints into the schema.
+        self::assertSame(3, $payload['properties']['comment']['minLength'] ?? null);
+        self::assertSame(280, $payload['properties']['comment']['maxLength'] ?? null);
+        self::assertContains('comment', $payload['required'] ?? []);
+    }
+
     public function testItRendersTheHtmlUiWithTheConfiguredWebComponent(): void
     {
         $kernel = new TestKernel(uniqid('t', true), false);

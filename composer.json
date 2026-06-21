@@ -34,10 +34,12 @@
         "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
         "symfony/serializer": "^6.4 || ^7.0 || ^8.0",
         "symfony/twig-bundle": "^6.4 || ^7.0 || ^8.0",
+        "symfony/validator": "^6.4 || ^7.0 || ^8.0",
         "twig/twig": "^3.0"
     },
     "suggest": {
         "symfony/serializer": "Lets the bundle derive payload schemas through the Symfony Serializer",
+        "symfony/validator": "Reflects validation constraints (NotBlank, Length, Range…) into the payload schema",
         "symfony/twig-bundle": "Enables the bundled /asyncapi HTML preview route (renders the document with the AsyncAPI web component)"
     },
     "autoload": {
