@@ -45,7 +45,7 @@ jobs:
         run: ./vendor/bin/phpstan analyse -c phpstan.neon.dist --no-progress --no-ansi --memory-limit=512M
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           flags: php-${{ matrix.php }}
