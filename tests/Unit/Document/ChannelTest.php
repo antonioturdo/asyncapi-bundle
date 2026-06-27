@@ -7,6 +7,7 @@ namespace Zeusi\AsyncApiBundle\Tests\Unit\Document;
 use PHPUnit\Framework\TestCase;
 use Zeusi\AsyncApiBundle\Document\Channel;
 use Zeusi\AsyncApiBundle\Document\ExternalDocumentation;
+use Zeusi\AsyncApiBundle\Document\Reference;
 use Zeusi\AsyncApiBundle\Document\Tag;
 
 final class ChannelTest extends TestCase
@@ -30,6 +31,20 @@ final class ChannelTest extends TestCase
             'address' => 'orders',
             'title' => 'Orders',
             'bindings' => ['amqp' => ['is' => 'routingKey']],
+        ], $channel->toArray());
+    }
+
+    public function testItHydratesAndRendersServerReferences(): void
+    {
+        $channel = Channel::fromArray([
+            'address' => 'orders',
+            'servers' => [['$ref' => '#/servers/events']],
+        ]);
+
+        self::assertEquals([Reference::to('#/servers/events')], $channel->servers);
+        self::assertSame([
+            'address' => 'orders',
+            'servers' => [['$ref' => '#/servers/events']],
         ], $channel->toArray());
     }
 

@@ -36,7 +36,7 @@ final class Message
         public ?string $title = null,
         public ?string $summary = null,
         public ?string $description = null,
-        public string $contentType = 'application/json',
+        public ?string $contentType = null,
         public ?CorrelationId $correlationId = null,
         public ?ExternalDocumentation $externalDocs = null,
     ) {}
@@ -54,7 +54,8 @@ final class Message
             }
         }
 
-        $data['contentType'] = $this->contentType;
+        // contentType is optional (null = undeclared); the document falls back to the default.
+        $data['contentType'] = $this->contentType ?? 'application/json';
 
         if ($this->payload !== null) {
             $data['payload'] = $this->payload;

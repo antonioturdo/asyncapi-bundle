@@ -18,6 +18,13 @@ final class Channel
     public array $messages = [];
 
     /**
+     * Servers this channel is available on; empty means all of them.
+     *
+     * @var list<Reference>
+     */
+    public array $servers = [];
+
+    /**
      * @var list<Tag>
      */
     public array $tags = [];
@@ -61,7 +68,17 @@ final class Channel
             }
         }
 
-        $known = ['address', 'title', 'summary', 'description', 'externalDocs', 'tags', 'messages'];
+        $servers = $data['servers'] ?? null;
+
+        if (\is_array($servers)) {
+            foreach ($servers as $server) {
+                if (\is_array($server) && \is_string($server['$ref'] ?? null)) {
+                    $channel->servers[] = Reference::to($server['$ref']);
+                }
+            }
+        }
+
+        $known = ['address', 'title', 'summary', 'description', 'externalDocs', 'tags', 'messages', 'servers'];
 
         foreach ($data as $key => $value) {
             if (\is_string($key) && !\in_array($key, $known, true)) {
@@ -83,6 +100,10 @@ final class Channel
             if ($value !== null) {
                 $data[$key] = $value;
             }
+        }
+
+        if ($this->servers !== []) {
+            $data['servers'] = array_map(static fn(Reference $server): array => $server->toArray(), $this->servers);
         }
 
         // Each entry is either an inline Message or a Reference, rendered as-is.

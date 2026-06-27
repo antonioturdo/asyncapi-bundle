@@ -29,7 +29,7 @@ final class DiscoveredMessage
         public readonly ?string $title,
         public readonly ?string $summary,
         public readonly ?string $description,
-        public readonly string $contentType,
+        public readonly ?string $contentType,
         public readonly array $tags,
         public readonly ?ExternalDocumentation $externalDocs = null,
         public readonly ?CorrelationId $correlationId = null,

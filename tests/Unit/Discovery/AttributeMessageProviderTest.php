@@ -31,13 +31,14 @@ final class AttributeMessageProviderTest extends TestCase
         // Only the two attributed classes are returned, in input order.
         self::assertCount(2, $discovered);
 
-        // Defaults: send action, name falls back to the class short name, JSON content type.
+        // Defaults: send action, name falls back to the class short name, content type
+        // left undeclared (resolved to application/json at render time, or via Messenger).
         $default = $discovered[0];
         self::assertSame(DefaultPlacementMessage::class, $default->messageClass);
         self::assertSame(OperationAction::Send, $default->action);
         self::assertNull($default->channel);
         self::assertSame('DefaultPlacementMessage', $default->name);
-        self::assertSame('application/json', $default->contentType);
+        self::assertNull($default->contentType);
 
         // Explicit placement and metadata are carried through verbatim.
         $explicit = $discovered[1];
