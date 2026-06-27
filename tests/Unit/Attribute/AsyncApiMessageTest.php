@@ -26,7 +26,8 @@ final class AsyncApiMessageTest extends TestCase
         self::assertNull($message->name);
         self::assertNull($message->title);
         self::assertNull($message->description);
-        self::assertSame('application/json', $message->contentType);
+        // Undeclared: resolves to application/json at render time (or via Messenger).
+        self::assertNull($message->contentType);
     }
 
     public function testItAcceptsAReceivePlacement(): void
