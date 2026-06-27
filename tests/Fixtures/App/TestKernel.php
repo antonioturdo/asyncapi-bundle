@@ -62,6 +62,17 @@ final class TestKernel extends Kernel
             'php_errors' => ['log' => true],
             'serializer' => ['enabled' => true],
             'validation' => ['enabled' => true],
+            'messenger' => [
+                'transports' => [
+                    'events' => 'amqp://guest:guest@broker.demo.test:5672/%2f/messages',
+                    'internal' => 'sync://',
+                ],
+                'routing' => [
+                    Message\TripBooked::class => ['events'],
+                    // No #[AsyncApiMessage]: documented purely via routing-discovery.
+                    Message\PaymentCaptured::class => ['events'],
+                ],
+            ],
         ]);
 
         $container->extension('twig', []);
@@ -81,9 +92,13 @@ final class TestKernel extends Kernel
                     ],
                 ],
             ],
-            'discovery' => [
+            'providers' => [
                 'attribute' => [
                     'paths' => [__DIR__ . '/Message'],
+                ],
+                'messenger' => [
+                    'enrichment' => true,
+                    'discovery' => true,
                 ],
             ],
             'ui' => [

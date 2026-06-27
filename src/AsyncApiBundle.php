@@ -19,6 +19,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Zeusi\AsyncApiBundle\Controller\AsyncApiController;
 use Zeusi\AsyncApiBundle\DependencyInjection\DefaultExtractorPass;
 use Zeusi\AsyncApiBundle\DependencyInjection\MessageDiscoveryPass;
+use Zeusi\AsyncApiBundle\DependencyInjection\MessengerWiringPass;
 use Zeusi\AsyncApiBundle\Discovery\AttributeMessageProvider;
 use Zeusi\AsyncApiBundle\Discovery\MessageProviderInterface;
 use Zeusi\AsyncApiBundle\Generator\AsyncApiGenerator;
@@ -42,9 +43,11 @@ final class AsyncApiBundle extends AbstractBundle
     public const PAYLOAD_SCHEMA_EXTRACTOR_SERVICE = 'asyncapi.payload_schema_extractor';
     public const TAG_JSON_SCHEMA_ENRICHER = 'asyncapi.json_schema_enricher';
     public const PARAM_DISCOVERY_ATTRIBUTE_PATHS = 'asyncapi.discovery.attribute.paths';
-
-    private const TAG_PROCESSOR = 'asyncapi.processor';
-    private const TAG_MESSAGE_PROVIDER = 'asyncapi.message_provider';
+    public const PARAM_MESSENGER_ENRICHMENT = 'asyncapi.messenger.enrichment';
+    public const PARAM_MESSENGER_TRANSPORTS = 'asyncapi.messenger.transports';
+    public const PARAM_MESSENGER_DISCOVERY = 'asyncapi.messenger.discovery';
+    public const TAG_PROCESSOR = 'asyncapi.processor';
+    public const TAG_MESSAGE_PROVIDER = 'asyncapi.message_provider';
     private const SERVICE_DISCOVERER = 'asyncapi.json_schema.discoverer';
     private const SERVICE_MAPPER = 'asyncapi.json_schema.mapper';
     private const SERVICE_JSON_ENCODE = 'asyncapi.json_schema.serialization.json_encode';
@@ -68,6 +71,9 @@ final class AsyncApiBundle extends AbstractBundle
         // Upgrades the default extractor with the Symfony serializer/validator
         // integrations once their services are known to exist.
         $container->addCompilerPass(new DefaultExtractorPass());
+
+        // Adds servers derived from Messenger transports, when Messenger is present.
+        $container->addCompilerPass(new MessengerWiringPass());
     }
 
     public function configure(DefinitionConfigurator $definition): void
@@ -97,13 +103,29 @@ final class AsyncApiBundle extends AbstractBundle
             ->defaultNull()
             ->info('Optional service id implementing Payload\ExtractionContextFactory, building the ExtractionContext (e.g. serialization groups) passed to the extractor per message.');
 
-        $discovery = $children->arrayNode('discovery')->addDefaultsIfNotSet()->children();
-        $attribute = $discovery->arrayNode('attribute')->addDefaultsIfNotSet()->children();
+        $providers = $children->arrayNode('providers')->addDefaultsIfNotSet()->children();
+
+        $attribute = $providers->arrayNode('attribute')->addDefaultsIfNotSet()->children();
         $attribute
             ->arrayNode('paths')
             ->info('Directories scanned for classes marked with #[AsyncApiMessage]. Defaults to the project PSR-4 roots when omitted.')
             ->scalarPrototype()
             ->end();
+
+        $messenger = $providers->arrayNode('messenger')->addDefaultsIfNotSet()->children();
+        $messenger
+            ->arrayNode('transports')
+            ->info('Allowlist of transport names the integration considers; empty means all. Failure transports are always excluded. Scopes both enrichment and discovery.')
+            ->scalarPrototype()
+            ->end();
+        $messenger
+            ->booleanNode('enrichment')
+            ->defaultFalse()
+            ->info('Enrich documented messages from your transports: servers (from the DSN), content type (from the serializer) and channel↔server links. Off by default — enable when your Messenger transports are your publication channel.');
+        $messenger
+            ->booleanNode('discovery')
+            ->defaultFalse()
+            ->info('Discover messages from the Messenger routing map (FQCN keys plus interface/parent/namespace-wildcard matches), scoped by `transports`. Off by default.');
 
         $ui = $children->arrayNode('ui')->addDefaultsIfNotSet()->children();
         $ui
@@ -134,13 +156,19 @@ final class AsyncApiBundle extends AbstractBundle
      * @param array{
      *     document: array<array-key, mixed>,
      *     payload_schema_extractor: array{service: string, context_factory: ?string},
-     *     discovery: array{attribute: array{paths: list<string>}},
+     *     providers: array{
+     *         attribute: array{paths: list<string>},
+     *         messenger: array{transports: list<string>, enrichment: bool, discovery: bool}
+     *     },
      *     ui: array{config: array<string, mixed>, css_import_path: string}
      * } $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
-        $builder->setParameter(self::PARAM_DISCOVERY_ATTRIBUTE_PATHS, $config['discovery']['attribute']['paths']);
+        $builder->setParameter(self::PARAM_DISCOVERY_ATTRIBUTE_PATHS, $config['providers']['attribute']['paths']);
+        $builder->setParameter(self::PARAM_MESSENGER_ENRICHMENT, $config['providers']['messenger']['enrichment']);
+        $builder->setParameter(self::PARAM_MESSENGER_TRANSPORTS, $config['providers']['messenger']['transports']);
+        $builder->setParameter(self::PARAM_MESSENGER_DISCOVERY, $config['providers']['messenger']['discovery']);
 
         $services = $container->services();
         $services->defaults()->autowire()->autoconfigure();

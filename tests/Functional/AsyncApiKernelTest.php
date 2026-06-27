@@ -91,6 +91,48 @@ final class AsyncApiKernelTest extends TestCase
         self::assertContains('comment', $payload['required'] ?? []);
     }
 
+    public function testMessengerTransportsAreAddedAsServers(): void
+    {
+        $kernel = new TestKernel(uniqid('t', true), false);
+        $kernel->boot();
+
+        $decoded = json_decode((string) $kernel->handle(Request::create('/asyncapi.json'))->getContent(), true);
+
+        $kernel->shutdown();
+
+        self::assertIsArray($decoded);
+        // TripBooked is routed to the 'events' (amqp) transport → its server is added.
+        self::assertSame(
+            ['host' => 'broker.demo.test:5672', 'protocol' => 'amqp'],
+            $decoded['servers']['events'] ?? null,
+        );
+        // The internal sync transport is not a broker → no server.
+        self::assertArrayNotHasKey('internal', $decoded['servers'] ?? []);
+    }
+
+    public function testItDiscoversRoutedMessagesWithoutAnAttribute(): void
+    {
+        $kernel = new TestKernel(uniqid('t', true), false);
+        $kernel->boot();
+
+        $decoded = json_decode((string) $kernel->handle(Request::create('/asyncapi.json'))->getContent(), true);
+
+        $kernel->shutdown();
+
+        self::assertIsArray($decoded);
+        // PaymentCaptured carries NO #[AsyncApiMessage]; it is documented purely
+        // because it is routed in framework.messenger and routing-discovery is on.
+        $message = $decoded['components']['messages']['PaymentCaptured'] ?? null;
+        self::assertIsArray($message);
+        self::assertArrayHasKey('PaymentCaptured', $decoded['channels'] ?? []);
+
+        // Its payload is still derived from the typed constructor properties.
+        $properties = $message['payload']['properties'] ?? null;
+        self::assertIsArray($properties);
+        self::assertArrayHasKey('paymentId', $properties);
+        self::assertArrayHasKey('amountCents', $properties);
+    }
+
     public function testItRendersTheHtmlUiWithTheConfiguredWebComponent(): void
     {
         $kernel = new TestKernel(uniqid('t', true), false);
