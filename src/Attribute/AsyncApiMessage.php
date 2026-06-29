@@ -34,7 +34,7 @@ final class AsyncApiMessage
      * @param string|null $title Human-friendly message title.
      * @param string|null $summary Short, one-line summary of the message (describes the data).
      * @param string|null $description Longer description (CommonMark allowed).
-     * @param string $contentType Payload content type carried over the wire.
+     * @param string|null $contentType Payload content type carried over the wire.
      * @param list<string|Tag> $tags Free-form tags; a plain string is shorthand for a Tag with that name.
      * @param ExternalDocumentation|null $externalDocs Link to external documentation for this message.
      * @param CorrelationId|null $correlationId Locates the correlation id in the message (a runtime expression).
@@ -46,7 +46,7 @@ final class AsyncApiMessage
         public ?string $title = null,
         public ?string $summary = null,
         public ?string $description = null,
-        public string $contentType = 'application/json',
+        public ?string $contentType = null,
         public array $tags = [],
         public ?ExternalDocumentation $externalDocs = null,
         public ?CorrelationId $correlationId = null,
