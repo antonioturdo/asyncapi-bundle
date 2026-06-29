@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-29
+
+Pre-1.0: still subject to change between minor versions.
+
+### Added
+- **Symfony Messenger integration** (`providers.messenger`, needs `symfony/messenger`),
+  built on Messenger's own routing semantics. Two opt-in capabilities:
+  - `enrichment` — derives servers (from transport DSNs), content types (from the
+    transport serializer) and channel↔server links for documented messages;
+  - `discovery` — discovers messages straight from the routing map (FQCN keys plus
+    interface/parent/namespace-wildcard matches), so routed classes need no attribute.
+
+  A `transports` allowlist scopes both; failure/retry transports are always excluded.
+
+### Changed
+- **BREAKING (config):** the `discovery` root was renamed to `providers`, so
+  `discovery.attribute.paths` is now `providers.attribute.paths`.
+- `#[AsyncApiMessage]` `contentType` now defaults to `null` instead of
+  `'application/json'`. The rendered document is unchanged (still `application/json`
+  when unset); `null` lets a routed Messenger transport's serializer determine it.
+
 ## [0.1.0] - 2026-06-21
 
 First public release. Pre-1.0: the API may still change between minor versions.
