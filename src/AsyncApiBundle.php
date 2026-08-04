@@ -85,7 +85,9 @@ final class AsyncApiBundle extends AbstractBundle
             ->defaultValue([])
             ->info('Static AsyncAPI fragment (asyncapi version, info, servers, security, tags…) merged as the base of the generated document. The `asyncapi` version defaults to the latest supported and is validated.');
 
-        $extractor = $children->arrayNode('payload_schema_extractor')->addDefaultsIfNotSet();
+        $schemas = $children->arrayNode('schemas')->addDefaultsIfNotSet()->children();
+
+        $extractor = $schemas->arrayNode('extractor')->addDefaultsIfNotSet();
         // Shorthand: a bare string is the extractor service id.
         $extractor
             ->beforeNormalization()
@@ -102,6 +104,12 @@ final class AsyncApiBundle extends AbstractBundle
             ->scalarNode('context_factory')
             ->defaultNull()
             ->info('Optional service id implementing Payload\ExtractionContextFactory, building the ExtractionContext (e.g. serialization groups) passed to the extractor per message.');
+
+        $schemas
+            ->arrayNode('names')
+            ->info('Class => name of the schema it is published under. A nested type is named after its short name; declare a name here when two classes would claim the same one.')
+            ->scalarPrototype()
+            ->end();
 
         $providers = $children->arrayNode('providers')->addDefaultsIfNotSet()->children();
 
@@ -155,7 +163,7 @@ final class AsyncApiBundle extends AbstractBundle
     /**
      * @param array{
      *     document: array<array-key, mixed>,
-     *     payload_schema_extractor: array{service: string, context_factory: ?string},
+     *     schemas: array{extractor: array{service: string, context_factory: ?string}, names: array<class-string, string>},
      *     providers: array{
      *         attribute: array{paths: list<string>},
      *         messenger: array{transports: list<string>, enrichment: bool, discovery: bool}
@@ -205,12 +213,12 @@ final class AsyncApiBundle extends AbstractBundle
             ->set(PayloadProcessor::class)
             ->autowire(false)
             ->autoconfigure(false)
-            ->arg('$extractor', service($config['payload_schema_extractor']['service'])->ignoreOnInvalid())
+            ->arg('$extractor', service($config['schemas']['extractor']['service'])->ignoreOnInvalid())
             ->arg('$logger', service('logger')->ignoreOnInvalid())
             ->tag(self::TAG_PROCESSOR, ['priority' => -100]);
 
-        if ($config['payload_schema_extractor']['context_factory'] !== null) {
-            $payloadProcessor->arg('$contextFactory', service($config['payload_schema_extractor']['context_factory']));
+        if ($config['schemas']['extractor']['context_factory'] !== null) {
+            $payloadProcessor->arg('$contextFactory', service($config['schemas']['extractor']['context_factory']));
         }
 
         // Hoists inline channel messages into components.messages (after payloads
