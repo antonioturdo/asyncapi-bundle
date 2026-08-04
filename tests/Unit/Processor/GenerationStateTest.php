@@ -28,6 +28,21 @@ final class GenerationStateTest extends TestCase
         self::assertNull($state->payloadClass($twin));
     }
 
+    public function testItRecordsThePayloadRefsAndDefaultsToAnEmptyMap(): void
+    {
+        $state = new GenerationState();
+
+        $withRefs = new Message(name: 'Car');
+        $withoutRefs = new Message(name: 'OrderPlaced');
+        $refs = ['#/definitions/Engine' => \stdClass::class];
+
+        $state->recordPayloadRefs($withRefs, $refs);
+
+        self::assertSame($refs, $state->payloadRefs($withRefs));
+        // A map, so nothing to record reads as an empty one rather than null.
+        self::assertSame([], $state->payloadRefs($withoutRefs));
+    }
+
     /**
      * The reason entries are keyed by identity: a message is moved out of its
      * channel and into the components catalog part-way through the pipeline, and

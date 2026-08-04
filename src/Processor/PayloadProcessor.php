@@ -58,7 +58,7 @@ final class PayloadProcessor implements AsyncApiProcessorInterface
                 );
 
                 try {
-                    $schema = $this->extractor->extract($payloadClass, $extractionContext);
+                    $result = $this->extractor->extract($payloadClass, $extractionContext);
                 } catch (\Throwable $e) {
                     $this->logger?->warning(
                         'Could not extract the AsyncAPI payload for {class}: {reason}',
@@ -68,9 +68,22 @@ final class PayloadProcessor implements AsyncApiProcessorInterface
                     continue;
                 }
 
-                if (\is_array($schema)) {
-                    $message->payload = $schema;
+                // An extractor reports an empty schema as an object, so that it encodes
+                // to `{}` rather than `[]`. The model holds a payload as an array, so
+                // such a schema is reported instead of being dropped unnoticed.
+                if (!\is_array($result->schema)) {
+                    $this->logger?->warning(
+                        'Skipped the AsyncAPI payload for {class}: the extracted schema is empty.',
+                        ['class' => $payloadClass],
+                    );
+
+                    continue;
                 }
+
+                $message->payload = $result->schema;
+                // The pointers describe the payload just stored, and are what a later
+                // processor needs to relocate the definitions it references.
+                $state->recordPayloadRefs($message, $result->refs);
             }
         }
     }
