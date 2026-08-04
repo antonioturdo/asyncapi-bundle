@@ -32,7 +32,7 @@ final class PayloadProcessor implements AsyncApiProcessorInterface
         private readonly ?ExtractionContextFactory $contextFactory = null,
     ) {}
 
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         if ($this->extractor === null) {
             return;
@@ -42,21 +42,27 @@ final class PayloadProcessor implements AsyncApiProcessorInterface
             foreach ($channel->messages as $message) {
                 // Runs before canonicalization, so channels still hold inline
                 // Messages; skip anything already turned into a Reference.
-                if (!$message instanceof Message || $message->payloadClass === null) {
+                if (!$message instanceof Message) {
+                    continue;
+                }
+
+                $payloadClass = $state->payloadClass($message);
+
+                if ($payloadClass === null) {
                     continue;
                 }
 
                 $extractionContext = $this->contextFactory?->create(
-                    new ExtractionTarget($message->payloadClass),
+                    new ExtractionTarget($payloadClass),
                     $context,
                 );
 
                 try {
-                    $schema = $this->extractor->extract($message->payloadClass, $extractionContext);
+                    $schema = $this->extractor->extract($payloadClass, $extractionContext);
                 } catch (\Throwable $e) {
                     $this->logger?->warning(
                         'Could not extract the AsyncAPI payload for {class}: {reason}',
-                        ['class' => $message->payloadClass, 'reason' => $e->getMessage(), 'exception' => $e],
+                        ['class' => $payloadClass, 'reason' => $e->getMessage(), 'exception' => $e],
                     );
 
                     continue;

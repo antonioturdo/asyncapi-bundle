@@ -12,12 +12,20 @@ use Zeusi\AsyncApiBundle\Document\Message;
 use Zeusi\AsyncApiBundle\Payload\ExtractionContextFactory;
 use Zeusi\AsyncApiBundle\Payload\ExtractionTarget;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 use Zeusi\AsyncApiBundle\Processor\PayloadProcessor;
 use Zeusi\JsonSchemaExtractor\Context\ExtractionContext;
 use Zeusi\JsonSchemaExtractor\SchemaExtractor;
 
 final class PayloadProcessorTest extends TestCase
 {
+    private GenerationState $state;
+
+    protected function setUp(): void
+    {
+        $this->state = new GenerationState();
+    }
+
     public function testItFillsPayloadsFromTheExtractorAndLeavesUnsourcedMessagesAlone(): void
     {
         $schema = ['type' => 'object', 'properties' => ['id' => ['type' => 'string']]];
@@ -30,7 +38,7 @@ final class PayloadProcessorTest extends TestCase
             $unsourced = $this->message('Freeform', null),
         );
 
-        (new PayloadProcessor($extractor))->process($document, new DocumentContext('default'));
+        (new PayloadProcessor($extractor))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertSame($schema, $sourced->payload);
         self::assertNull($unsourced->payload);
@@ -40,7 +48,7 @@ final class PayloadProcessorTest extends TestCase
     {
         $document = $this->documentWith($message = $this->message('OrderPlaced', \stdClass::class));
 
-        (new PayloadProcessor())->process($document, new DocumentContext('default'));
+        (new PayloadProcessor())->process($document, new DocumentContext('default'), $this->state);
 
         self::assertNull($message->payload);
     }
@@ -64,7 +72,7 @@ final class PayloadProcessorTest extends TestCase
 
         $document = $this->documentWith($message = $this->message('OrderPlaced', \stdClass::class));
 
-        (new PayloadProcessor($extractor, $logger))->process($document, new DocumentContext('default'));
+        (new PayloadProcessor($extractor, $logger))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertNull($message->payload);
         self::assertCount(1, $logger->warnings);
@@ -96,7 +104,7 @@ final class PayloadProcessorTest extends TestCase
 
         $document = $this->documentWith($this->message('OrderPlaced', \stdClass::class));
 
-        (new PayloadProcessor($extractor, null, $factory))->process($document, new DocumentContext('default'));
+        (new PayloadProcessor($extractor, null, $factory))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertCount(1, $factory->targets);
         self::assertSame(\stdClass::class, $factory->targets[0]->payloadClass);
@@ -108,7 +116,10 @@ final class PayloadProcessorTest extends TestCase
     private function message(string $name, ?string $payloadClass): Message
     {
         $message = new Message(name: $name);
-        $message->payloadClass = $payloadClass;
+
+        if ($payloadClass !== null) {
+            $this->state->recordPayloadClass($message, $payloadClass);
+        }
 
         return $message;
     }

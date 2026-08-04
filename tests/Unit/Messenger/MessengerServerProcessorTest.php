@@ -13,9 +13,17 @@ use Zeusi\AsyncApiBundle\Document\Server;
 use Zeusi\AsyncApiBundle\Messenger\MessengerServerProcessor;
 use Zeusi\AsyncApiBundle\Messenger\RouteResolver;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 final class MessengerServerProcessorTest extends TestCase
 {
+    private GenerationState $state;
+
+    protected function setUp(): void
+    {
+        $this->state = new GenerationState();
+    }
+
     public function testItAddsServersOnlyForTransportsADocumentedMessageIsRoutedTo(): void
     {
         $document = $this->documentWithMessage('OrderPlaced', \stdClass::class);
@@ -28,7 +36,7 @@ final class MessengerServerProcessorTest extends TestCase
             routeResolver: new RouteResolver([
                 \stdClass::class => ['events'],
             ]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         // 'events' carries a documented message → server added (host:port + protocol).
         self::assertSame(
@@ -47,7 +55,7 @@ final class MessengerServerProcessorTest extends TestCase
         (new MessengerServerProcessor(
             transports: ['internal' => 'doctrine://default'],
             routeResolver: new RouteResolver(['Zeusi\\AsyncApiBundle\\Document\\*' => ['internal']]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         // The class matches the wildcard, but the transport is a non-broker → no server.
         self::assertSame([], $document->servers);
@@ -61,7 +69,7 @@ final class MessengerServerProcessorTest extends TestCase
             transports: ['events' => 'amqp://broker.acme:5672'],
             // Routed by the interface, not the concrete class — Messenger matches it.
             routeResolver: new RouteResolver([RoutedEvent::class => ['events']]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertSame(
             ['host' => 'broker.acme:5672', 'protocol' => 'amqp'],
@@ -77,7 +85,7 @@ final class MessengerServerProcessorTest extends TestCase
             transports: ['events' => 'amqp://broker.acme:5672'],
             routeResolver: new RouteResolver([\stdClass::class => ['events']]),
             contentTypes: ['events' => 'application/xml'],
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertSame('application/xml', $this->message($document, 'OrderPlaced')->contentType);
     }
@@ -91,7 +99,7 @@ final class MessengerServerProcessorTest extends TestCase
             transports: ['events' => 'amqp://broker.acme:5672'],
             routeResolver: new RouteResolver([\stdClass::class => ['events']]),
             contentTypes: ['events' => 'application/xml'],
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertSame('application/cloudevents+json', $this->message($document, 'OrderPlaced')->contentType);
     }
@@ -111,7 +119,7 @@ final class MessengerServerProcessorTest extends TestCase
                 \stdClass::class => ['events'],
                 ConcreteRoutedEvent::class => ['logs'],
             ]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertCount(2, $document->servers);
         self::assertSame(['#/servers/events'], $this->channelServerRefs($document, 'orders'));
@@ -125,7 +133,7 @@ final class MessengerServerProcessorTest extends TestCase
         (new MessengerServerProcessor(
             transports: ['events' => 'amqp://broker.acme:5672'],
             routeResolver: new RouteResolver([\stdClass::class => ['events']]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         // Single server: the channel→server link would be noise, so it is left empty.
         self::assertSame([], $document->channels['orders']->servers);
@@ -139,7 +147,7 @@ final class MessengerServerProcessorTest extends TestCase
         (new MessengerServerProcessor(
             transports: ['events' => 'amqp://other.host:5672'],
             routeResolver: new RouteResolver([\stdClass::class => ['events']]),
-        ))->process($document, new DocumentContext('default'));
+        ))->process($document, new DocumentContext('default'), $this->state);
 
         self::assertSame('configured.example:5672', $document->servers['events']->host);
     }
@@ -152,7 +160,7 @@ final class MessengerServerProcessorTest extends TestCase
         $document = new AsyncApiDocument();
         $channel = new Channel(address: 'orders');
         $message = new Message(name: $name);
-        $message->payloadClass = $payloadClass;
+        $this->state->recordPayloadClass($message, $payloadClass);
         $channel->messages[$name] = $message;
         $document->channels['orders'] = $channel;
 
@@ -174,7 +182,7 @@ final class MessengerServerProcessorTest extends TestCase
     {
         $channel = new Channel();
         $message = new Message(name: $messageName);
-        $message->payloadClass = $payloadClass;
+        $this->state->recordPayloadClass($message, $payloadClass);
         $channel->messages[$messageName] = $message;
 
         return $channel;

@@ -20,7 +20,7 @@ final class ConfigProcessor implements AsyncApiProcessorInterface
         private readonly array $document,
     ) {}
 
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         $document->applyArray($this->document);
     }

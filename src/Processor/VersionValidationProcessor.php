@@ -17,7 +17,7 @@ use Zeusi\AsyncApiBundle\Document\AsyncApiVersion;
  */
 final class VersionValidationProcessor implements AsyncApiProcessorInterface
 {
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         $version = $document->asyncapi;
 

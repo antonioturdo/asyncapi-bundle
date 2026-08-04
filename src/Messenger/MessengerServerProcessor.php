@@ -10,6 +10,7 @@ use Zeusi\AsyncApiBundle\Document\Reference;
 use Zeusi\AsyncApiBundle\Document\Server;
 use Zeusi\AsyncApiBundle\Processor\AsyncApiProcessorInterface;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 /**
  * Enriches documented messages with servers and content types from their transports.
@@ -51,18 +52,24 @@ final class MessengerServerProcessor implements AsyncApiProcessorInterface
         private readonly array $contentTypes = [],
     ) {}
 
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         $routed = [];
         $channelTransports = [];
 
         foreach ($document->channels as $key => $channel) {
             foreach ($channel->messages as $message) {
-                if (!$message instanceof Message || $message->payloadClass === null) {
+                if (!$message instanceof Message) {
                     continue;
                 }
 
-                $transports = $this->routeResolver->resolve($message->payloadClass);
+                $payloadClass = $state->payloadClass($message);
+
+                if ($payloadClass === null) {
+                    continue;
+                }
+
+                $transports = $this->routeResolver->resolve($payloadClass);
                 $this->applyContentType($message, $transports);
 
                 foreach ($transports as $transport) {
@@ -75,8 +82,10 @@ final class MessengerServerProcessor implements AsyncApiProcessorInterface
         // Messages already hoisted into the catalog still get their content type
         // (defensive: at this stage they normally still live inline on a channel).
         foreach ($document->components->messages as $message) {
-            if ($message->payloadClass !== null) {
-                $this->applyContentType($message, $this->routeResolver->resolve($message->payloadClass));
+            $payloadClass = $state->payloadClass($message);
+
+            if ($payloadClass !== null) {
+                $this->applyContentType($message, $this->routeResolver->resolve($payloadClass));
             }
         }
 

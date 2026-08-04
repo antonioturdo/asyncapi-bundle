@@ -7,6 +7,7 @@ namespace Zeusi\AsyncApiBundle\Tests\Unit\Processor;
 use PHPUnit\Framework\TestCase;
 use Zeusi\AsyncApiBundle\Document\AsyncApiDocument;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 use Zeusi\AsyncApiBundle\Processor\VersionValidationProcessor;
 
 final class VersionValidationProcessorTest extends TestCase
@@ -16,7 +17,7 @@ final class VersionValidationProcessorTest extends TestCase
         $document = new AsyncApiDocument();
         $document->asyncapi = '3.0.0';
 
-        (new VersionValidationProcessor())->process($document, new DocumentContext('default'));
+        (new VersionValidationProcessor())->process($document, new DocumentContext('default'), new GenerationState());
 
         // No exception: the version is supported.
         self::assertSame('3.0.0', $document->asyncapi);
@@ -29,6 +30,6 @@ final class VersionValidationProcessorTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        (new VersionValidationProcessor())->process($document, new DocumentContext('default'));
+        (new VersionValidationProcessor())->process($document, new DocumentContext('default'), new GenerationState());
     }
 }

@@ -10,6 +10,7 @@ use Zeusi\AsyncApiBundle\Generator\AsyncApiGenerator;
 use Zeusi\AsyncApiBundle\Processor\AsyncApiProcessorInterface;
 use Zeusi\AsyncApiBundle\Processor\ConfigProcessor;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 final class AsyncApiGeneratorTest extends TestCase
 {
@@ -32,7 +33,7 @@ final class AsyncApiGeneratorTest extends TestCase
             return new class ($name) implements AsyncApiProcessorInterface {
                 public function __construct(private readonly string $name) {}
 
-                public function process(AsyncApiDocument $document, DocumentContext $context): void
+                public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
                 {
                     $existing = $document->extensions['x-trace'] ?? '';
                     $document->extensions['x-trace'] = (\is_string($existing) ? $existing : '') . $this->name;

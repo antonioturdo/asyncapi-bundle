@@ -32,7 +32,7 @@ final class DiscoveryProcessor implements AsyncApiProcessorInterface
         private readonly ?LoggerInterface $logger = null,
     ) {}
 
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         /** @var array<string, class-string> $seenBy message key => the class that claimed it */
         $seenBy = [];
@@ -47,18 +47,18 @@ final class DiscoveryProcessor implements AsyncApiProcessorInterface
                 }
 
                 $seenBy[$discovered->name] = $discovered->messageClass;
-                $this->place($document, $discovered);
+                $this->place($document, $discovered, $state);
             }
         }
     }
 
-    private function place(AsyncApiDocument $document, DiscoveredMessage $discovered): void
+    private function place(AsyncApiDocument $document, DiscoveredMessage $discovered, GenerationState $state): void
     {
         $channelKey = $discovered->channel ?? $discovered->name;
         $messageKey = $discovered->name;
 
         $channel = $document->channels[$channelKey] ?? new Channel(address: $channelKey);
-        $channel->messages[$messageKey] = $this->toMessage($discovered);
+        $channel->messages[$messageKey] = $this->toMessage($discovered, $state);
         $document->channels[$channelKey] = $channel;
 
         $operation = new Operation($discovered->action, Reference::to('#/channels/' . $channelKey));
@@ -66,7 +66,7 @@ final class DiscoveryProcessor implements AsyncApiProcessorInterface
         $document->operations[$this->operationKey($discovered)] = $operation;
     }
 
-    private function toMessage(DiscoveredMessage $discovered): Message
+    private function toMessage(DiscoveredMessage $discovered, GenerationState $state): Message
     {
         $message = new Message(
             name: $discovered->name,
@@ -83,7 +83,7 @@ final class DiscoveryProcessor implements AsyncApiProcessorInterface
             static fn(string|Tag $tag): Tag => $tag instanceof Tag ? $tag : new Tag($tag),
             $discovered->tags,
         );
-        $message->payloadClass = $discovered->messageClass;
+        $state->recordPayloadClass($message, $discovered->messageClass);
 
         return $message;
     }

@@ -19,7 +19,7 @@ use Zeusi\AsyncApiBundle\Document\Reference;
  */
 final class CanonicalizeMessagesProcessor implements AsyncApiProcessorInterface
 {
-    public function process(AsyncApiDocument $document, DocumentContext $context): void
+    public function process(AsyncApiDocument $document, DocumentContext $context, GenerationState $state): void
     {
         foreach ($document->channels as $channel) {
             foreach ($channel->messages as $key => $message) {
