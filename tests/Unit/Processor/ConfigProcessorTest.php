@@ -10,6 +10,7 @@ use Zeusi\AsyncApiBundle\Document\Info;
 use Zeusi\AsyncApiBundle\Document\Server;
 use Zeusi\AsyncApiBundle\Processor\ConfigProcessor;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 final class ConfigProcessorTest extends TestCase
 {
@@ -22,7 +23,7 @@ final class ConfigProcessorTest extends TestCase
             'id' => 'urn:acme:events',
             'defaultContentType' => 'application/json',
             'info' => ['title' => 'Acme', 'version' => '1.0.0'],
-        ]))->process($document, new DocumentContext('default'));
+        ]))->process($document, new DocumentContext('default'), new GenerationState());
 
         // The modelled root scalars become typed fields.
         self::assertSame('3.0.0', $document->asyncapi);
@@ -52,7 +53,7 @@ final class ConfigProcessorTest extends TestCase
                 'production' => ['host' => 'broker.acme.com:5672', 'protocol' => 'amqp', 'bindings' => ['amqp' => []]],
             ],
             'info' => ['title' => 'Acme', 'version' => '1.0.0'],
-        ]))->process($document, new DocumentContext('default'));
+        ]))->process($document, new DocumentContext('default'), new GenerationState());
 
         self::assertInstanceOf(Server::class, $document->servers['production'] ?? null);
         self::assertSame('amqp', $document->servers['production']->protocol);

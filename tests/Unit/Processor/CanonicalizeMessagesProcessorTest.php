@@ -11,6 +11,7 @@ use Zeusi\AsyncApiBundle\Document\Message;
 use Zeusi\AsyncApiBundle\Document\Reference;
 use Zeusi\AsyncApiBundle\Processor\CanonicalizeMessagesProcessor;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 final class CanonicalizeMessagesProcessorTest extends TestCase
 {
@@ -22,7 +23,7 @@ final class CanonicalizeMessagesProcessorTest extends TestCase
         $channel->messages['OrderPlaced'] = $message;
         $document->channels['orders'] = $channel;
 
-        (new CanonicalizeMessagesProcessor())->process($document, new DocumentContext('default'));
+        (new CanonicalizeMessagesProcessor())->process($document, new DocumentContext('default'), new GenerationState());
 
         // The message body now lives in the components catalog.
         self::assertSame($message, $document->components->messages['OrderPlaced']);
@@ -40,8 +41,8 @@ final class CanonicalizeMessagesProcessorTest extends TestCase
         $document->channels['orders'] = $channel;
 
         $processor = new CanonicalizeMessagesProcessor();
-        $processor->process($document, new DocumentContext('default'));
-        $processor->process($document, new DocumentContext('default'));
+        $processor->process($document, new DocumentContext('default'), new GenerationState());
+        $processor->process($document, new DocumentContext('default'), new GenerationState());
 
         self::assertCount(1, $document->components->messages);
         self::assertInstanceOf(Reference::class, $document->channels['orders']->messages['OrderPlaced']);

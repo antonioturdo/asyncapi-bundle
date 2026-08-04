@@ -8,6 +8,7 @@ use Zeusi\AsyncApiBundle\Document\AsyncApiDocument;
 use Zeusi\AsyncApiBundle\Document\Info;
 use Zeusi\AsyncApiBundle\Processor\AsyncApiProcessorInterface;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 /**
  * Assembles a document by running the ordered processor pipeline.
@@ -33,9 +34,11 @@ final class AsyncApiGenerator
         $document = new AsyncApiDocument();
         $document->info = new Info($documentName, '1.0.0');
         $context = new DocumentContext($documentName);
+        // Fresh for each run: the metadata is transient, tied to this document.
+        $state = new GenerationState();
 
         foreach ($this->processors as $processor) {
-            $processor->process($document, $context);
+            $processor->process($document, $context, $state);
         }
 
         return $document;

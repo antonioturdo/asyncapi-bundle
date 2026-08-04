@@ -13,6 +13,7 @@ use Zeusi\AsyncApiBundle\Document\OperationAction;
 use Zeusi\AsyncApiBundle\Processor\CanonicalizeMessagesProcessor;
 use Zeusi\AsyncApiBundle\Processor\DiscoveryProcessor;
 use Zeusi\AsyncApiBundle\Processor\DocumentContext;
+use Zeusi\AsyncApiBundle\Processor\GenerationState;
 
 final class DiscoveryProcessorTest extends TestCase
 {
@@ -38,7 +39,7 @@ final class DiscoveryProcessorTest extends TestCase
             }
         };
 
-        (new DiscoveryProcessor([$provider], $logger))->process(new AsyncApiDocument(), new DocumentContext('default'));
+        (new DiscoveryProcessor([$provider], $logger))->process(new AsyncApiDocument(), new DocumentContext('default'), new GenerationState());
 
         self::assertCount(1, $logger->warnings);
     }
@@ -60,9 +61,10 @@ final class DiscoveryProcessorTest extends TestCase
         $document->info = new Info('seed', '1.0.0');
 
         $context = new DocumentContext('default');
-        (new DiscoveryProcessor([$provider]))->process($document, $context);
+        $state = new GenerationState();
+        (new DiscoveryProcessor([$provider]))->process($document, $context, $state);
         // Discovery leaves inline messages; canonicalization hoists them to components.
-        (new CanonicalizeMessagesProcessor())->process($document, $context);
+        (new CanonicalizeMessagesProcessor())->process($document, $context, $state);
 
         self::assertSame([
             'asyncapi' => '3.1.0',

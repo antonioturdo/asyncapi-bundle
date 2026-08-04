@@ -23,14 +23,6 @@ final class Message
      */
     public ?array $payload = null;
 
-    /**
-     * Source class the payload schema is derived from. Internal to processing —
-     * not part of the AsyncAPI output.
-     *
-     * @var class-string|null
-     */
-    public ?string $payloadClass = null;
-
     public function __construct(
         public ?string $name = null,
         public ?string $title = null,

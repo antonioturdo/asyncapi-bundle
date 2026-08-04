@@ -300,10 +300,13 @@ before it's served.
 `Zeusi\AsyncApiBundle\Processor\AsyncApiProcessorInterface` (services tagged
 `asyncapi.processor` — autoconfigured — ordered by priority) to add or refine
 *anything* in the document: channels, operations, messages, top-level fields. It
-receives the whole document plus a context, so it can build straight from
-operations, a channel registry, or any source that isn't message-shaped. The
-built-in behaviour is itself just a series of these processors, and yours slot in
-by priority.
+receives the whole document, a context (which document is being generated) and a
+generation state, so it can build straight from operations, a channel registry, or
+any source that isn't message-shaped. The generation state is a per-run scratchpad for
+metadata a processor needs to hand to a later one without it ending up in the
+document, such as the class a message's payload was derived from. The built-in
+behaviour is itself just a series of these processors, and yours slot in by
+priority.
 
 Higher priority runs first. The built-in pipeline, for reference — pick a priority
 relative to these to slot yours in:
