@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-10
+
+Pre-1.0: still subject to change between minor versions.
+
+### Fixed
+- A payload holding a nested type produced references that did not resolve once the
+  schema was embedded in the document ([#7]). The types a payload references are now
+  published in `components.schemas` and the references point at them, so a type used
+  by several messages is defined once.
+
+### Added
+- `schemas.names` maps a class to the name its schema is published under. A nested
+  type is named after its short name; declare a name here when two classes would
+  claim the same one. A clash is reported as an error rather than settled by a
+  convention of our own (a numeric suffix, say), since the name is what consumers
+  reference.
+- `GenerationState`, a per-run scratchpad handed to every processor, for the metadata
+  a processor passes to a later one without it reaching the document.
+
+### Changed
+- **BREAKING:** `AsyncApiProcessorInterface::process()` takes a third `GenerationState`
+  argument. A custom processor has to be updated.
+- **BREAKING:** `Message::$payloadClass` is gone; the source class of a payload lives
+  in the `GenerationState`.
+- **BREAKING:** the `payload_schema_extractor` config key is now `schemas.extractor`,
+  next to `schemas.names`. The bare-string shorthand still works, as
+  `schemas: { extractor: 'app.my_extractor' }`.
+- **BREAKING:** requires `zeusi/json-schema-extractor` ^3.0, whose `extract()` returns
+  an `ExtractionResult` carrying the schema together with the classes its references
+  denote.
+
+[#7]: https://github.com/antonioturdo/asyncapi-bundle/issues/7
+
 ## [0.2.0] - 2026-06-29
 
 Pre-1.0: still subject to change between minor versions.

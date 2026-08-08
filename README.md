@@ -218,6 +218,8 @@ can express more — see [Discovery and extending](#discovery-and-extending)):
 - Messages are grouped into **channels** by their `channel`; a message with no
   `channel` gets a channel of its own (keyed by the message `name`).
 - Each `(message, action)` yields one **operation**.
+- A type a payload references (a nested DTO) becomes a **schema** in
+  `components.schemas`, so a type shared by several messages is defined once.
 - Static parts from `document` (`info`, `servers`, …) are merged underneath.
 
 ## Payload schemas
@@ -324,6 +326,7 @@ relative to these to slot yours in:
 | `MessengerServerProcessor` | `400` | adds servers, content types and channel↔server links from Messenger transports — only when `providers.messenger.enrichment` is on |
 | `PayloadProcessor` | `-100` | derives each message's payload schema |
 | `CanonicalizeMessagesProcessor` | `-500` | hoists channel messages into `components.messages` |
+| `CanonicalizeSchemasProcessor` | `-600` | hoists the types a payload references into `components.schemas` |
 | `VersionValidationProcessor` | `-1000` | rejects an unsupported `asyncapi` version (runs last) |
 
 A processor left at the **default priority `0`** runs after discovery (the

@@ -10,9 +10,11 @@ use Zeusi\AsyncApiBundle\Discovery\MessageProviderInterface;
 use Zeusi\AsyncApiBundle\Document\OperationAction;
 use Zeusi\AsyncApiBundle\Generator\AsyncApiGenerator;
 use Zeusi\AsyncApiBundle\Processor\CanonicalizeMessagesProcessor;
+use Zeusi\AsyncApiBundle\Processor\CanonicalizeSchemasProcessor;
 use Zeusi\AsyncApiBundle\Processor\ConfigProcessor;
 use Zeusi\AsyncApiBundle\Processor\DiscoveryProcessor;
 use Zeusi\AsyncApiBundle\Processor\PayloadProcessor;
+use Zeusi\AsyncApiBundle\Tests\Fixtures\Payload\Car;
 use Zeusi\JsonSchemaExtractor\Discoverer\ReflectionDiscoverer;
 use Zeusi\JsonSchemaExtractor\Mapper\StandardJsonSchemaMapper;
 use Zeusi\JsonSchemaExtractor\SchemaExtractor;
@@ -58,6 +60,7 @@ final class NestedPayloadReferenceTest extends TestCase
             new DiscoveryProcessor([$provider]),
             new PayloadProcessor($extractor),
             new CanonicalizeMessagesProcessor(),
+            new CanonicalizeSchemasProcessor(),
         ]);
 
         $document = json_decode((string) json_encode($generator->generate('default')->toArray()), true);
@@ -120,18 +123,4 @@ final class NestedPayloadReferenceTest extends TestCase
 
         return true;
     }
-}
-
-final class Engine
-{
-    public function __construct(
-        public readonly string $id,
-    ) {}
-}
-
-final class Car
-{
-    public function __construct(
-        public readonly Engine $engine,
-    ) {}
 }

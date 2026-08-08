@@ -25,6 +25,7 @@ use Zeusi\AsyncApiBundle\Discovery\MessageProviderInterface;
 use Zeusi\AsyncApiBundle\Generator\AsyncApiGenerator;
 use Zeusi\AsyncApiBundle\Processor\AsyncApiProcessorInterface;
 use Zeusi\AsyncApiBundle\Processor\CanonicalizeMessagesProcessor;
+use Zeusi\AsyncApiBundle\Processor\CanonicalizeSchemasProcessor;
 use Zeusi\AsyncApiBundle\Processor\ConfigProcessor;
 use Zeusi\AsyncApiBundle\Processor\DiscoveryProcessor;
 use Zeusi\AsyncApiBundle\Processor\PayloadProcessor;
@@ -48,6 +49,14 @@ final class AsyncApiBundle extends AbstractBundle
     public const PARAM_MESSENGER_DISCOVERY = 'asyncapi.messenger.discovery';
     public const TAG_PROCESSOR = 'asyncapi.processor';
     public const TAG_MESSAGE_PROVIDER = 'asyncapi.message_provider';
+    /**
+     * The key pattern the AsyncAPI specification states for a components entry.
+     *
+     * A name outside it is not addressable by a `$ref`: a space makes the pointer an
+     * invalid URI reference, and a slash silently splits it into further segments.
+     */
+    private const COMPONENT_KEY_PATTERN = '^[\w\d.\-_]+$';
+
     private const SERVICE_DISCOVERER = 'asyncapi.json_schema.discoverer';
     private const SERVICE_MAPPER = 'asyncapi.json_schema.mapper';
     private const SERVICE_JSON_ENCODE = 'asyncapi.json_schema.serialization.json_encode';
@@ -109,6 +118,10 @@ final class AsyncApiBundle extends AbstractBundle
             ->arrayNode('names')
             ->info('Class => name of the schema it is published under. A nested type is named after its short name; declare a name here when two classes would claim the same one.')
             ->scalarPrototype()
+            ->validate()
+            ->ifTrue(static fn(mixed $name): bool => !\is_string($name) || preg_match('/' . self::COMPONENT_KEY_PATTERN . '/', $name) !== 1)
+            ->thenInvalid('An AsyncAPI component name must match ' . self::COMPONENT_KEY_PATTERN . ', got %s.')
+            ->end()
             ->end();
 
         $providers = $children->arrayNode('providers')->addDefaultsIfNotSet()->children();
@@ -228,6 +241,15 @@ final class AsyncApiBundle extends AbstractBundle
             ->autowire(false)
             ->autoconfigure(false)
             ->tag(self::TAG_PROCESSOR, ['priority' => -500]);
+
+        // Moves the definitions a payload references into components.schemas and
+        // rewrites the pointers, so they still resolve once embedded.
+        $services
+            ->set(CanonicalizeSchemasProcessor::class)
+            ->autowire(false)
+            ->autoconfigure(false)
+            ->arg('$names', $config['schemas']['names'])
+            ->tag(self::TAG_PROCESSOR, ['priority' => -600]);
 
         // Validates the targeted AsyncAPI version once everything is merged. Runs last.
         $services

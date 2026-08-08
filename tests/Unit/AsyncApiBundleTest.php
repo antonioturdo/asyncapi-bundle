@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Zeusi\AsyncApiBundle\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Zeusi\AsyncApiBundle\AsyncApiBundle;
 use Zeusi\AsyncApiBundle\Controller\AsyncApiController;
@@ -84,6 +85,20 @@ final class AsyncApiBundleTest extends TestCase
         ]);
 
         self::assertTrue($container->hasDefinition(PayloadProcessor::class));
+    }
+
+    public function testSchemaNamesRejectsANameTheSpecificationCannotAddress(): void
+    {
+        // A space makes the generated `$ref` an invalid URI reference, and a slash
+        // would split the pointer into further segments.
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('An AsyncAPI component name must match');
+
+        $this->loadWith([
+            'schemas' => [
+                'names' => ['App\Accounting\Money' => 'Accounting Money'],
+            ],
+        ]);
     }
 
     /**

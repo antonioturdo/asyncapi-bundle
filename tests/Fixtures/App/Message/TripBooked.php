@@ -12,5 +12,6 @@ final class TripBooked
     public function __construct(
         public readonly string $bookingId,
         public readonly int $travelers,
+        public readonly ?Money $price = null,
     ) {}
 }
