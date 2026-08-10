@@ -21,9 +21,15 @@ final class GenerationState
      */
     private \SplObjectStorage $payloadClasses;
 
+    /**
+     * @var \SplObjectStorage<Message, array<string, class-string>>
+     */
+    private \SplObjectStorage $payloadRefs;
+
     public function __construct()
     {
         $this->payloadClasses = new \SplObjectStorage();
+        $this->payloadRefs = new \SplObjectStorage();
     }
 
     /**
@@ -44,5 +50,30 @@ final class GenerationState
     public function payloadClass(Message $message): ?string
     {
         return $this->payloadClasses[$message] ?? null;
+    }
+
+    /**
+     * Records the reference pointers a message's payload schema carries.
+     *
+     * Kept per message because the pointers are relative to that schema's own root:
+     * the same pointer can appear in several payloads and denote a different class
+     * in each.
+     *
+     * @param array<string, class-string> $refs Pointer as emitted in the payload
+     *        (e.g. `#/definitions/Engine`) => the class it denotes.
+     */
+    public function recordPayloadRefs(Message $message, array $refs): void
+    {
+        $this->payloadRefs[$message] = $refs;
+    }
+
+    /**
+     * The reference pointers of a message's payload schema, empty when it has none.
+     *
+     * @return array<string, class-string>
+     */
+    public function payloadRefs(Message $message): array
+    {
+        return $this->payloadRefs[$message] ?? [];
     }
 }

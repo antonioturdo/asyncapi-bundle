@@ -12,5 +12,7 @@ final class TripCancelled
     public function __construct(
         public readonly string $bookingId,
         public readonly ?string $reason = null,
+        // The same value object as TripBooked: defined once in components.schemas.
+        public readonly ?Money $refund = null,
     ) {}
 }

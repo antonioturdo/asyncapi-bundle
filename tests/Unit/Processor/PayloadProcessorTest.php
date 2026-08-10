@@ -15,6 +15,7 @@ use Zeusi\AsyncApiBundle\Processor\DocumentContext;
 use Zeusi\AsyncApiBundle\Processor\GenerationState;
 use Zeusi\AsyncApiBundle\Processor\PayloadProcessor;
 use Zeusi\JsonSchemaExtractor\Context\ExtractionContext;
+use Zeusi\JsonSchemaExtractor\ExtractionResult;
 use Zeusi\JsonSchemaExtractor\SchemaExtractor;
 
 final class PayloadProcessorTest extends TestCase
@@ -31,7 +32,7 @@ final class PayloadProcessorTest extends TestCase
         $schema = ['type' => 'object', 'properties' => ['id' => ['type' => 'string']]];
 
         $extractor = $this->createMock(SchemaExtractor::class);
-        $extractor->method('extract')->willReturn($schema);
+        $extractor->method('extract')->willReturn(new ExtractionResult($schema, []));
 
         $document = $this->documentWith(
             $sourced = $this->message('OrderPlaced', \stdClass::class),
@@ -42,6 +43,38 @@ final class PayloadProcessorTest extends TestCase
 
         self::assertSame($schema, $sourced->payload);
         self::assertNull($unsourced->payload);
+    }
+
+    public function testItRecordsThePayloadReferencePointers(): void
+    {
+        $refs = ['#/definitions/Engine' => \ArrayObject::class];
+
+        $extractor = $this->createMock(SchemaExtractor::class);
+        $extractor->method('extract')->willReturn(
+            new ExtractionResult(['$ref' => '#/definitions/Engine'], $refs),
+        );
+
+        $document = $this->documentWith($message = $this->message('Car', \stdClass::class));
+
+        (new PayloadProcessor($extractor))->process($document, new DocumentContext('default'), $this->state);
+
+        // Kept for the processor that relocates the referenced definitions.
+        self::assertSame($refs, $this->state->payloadRefs($message));
+    }
+
+    public function testItSkipsAndWarnsOnAnEmptySchema(): void
+    {
+        $extractor = $this->createMock(SchemaExtractor::class);
+        // An empty schema comes back as an object, so that it encodes to `{}`.
+        $extractor->method('extract')->willReturn(new ExtractionResult((object) [], []));
+
+        $logger = new CollectingLogger();
+        $document = $this->documentWith($message = $this->message('OrderPlaced', \stdClass::class));
+
+        (new PayloadProcessor($extractor, $logger))->process($document, new DocumentContext('default'), $this->state);
+
+        self::assertNull($message->payload);
+        self::assertCount(1, $logger->warnings);
     }
 
     public function testItLeavesPayloadsEmptyWithoutAnExtractor(): void
@@ -58,18 +91,7 @@ final class PayloadProcessorTest extends TestCase
         $extractor = $this->createMock(SchemaExtractor::class);
         $extractor->method('extract')->willThrowException(new \RuntimeException());
 
-        $logger = new class extends \Psr\Log\AbstractLogger {
-            /** @var list<string> */
-            public array $warnings = [];
-
-            public function log($level, \Stringable|string $message, array $context = []): void
-            {
-                if ($level === \Psr\Log\LogLevel::WARNING) {
-                    $this->warnings[] = (string) $message;
-                }
-            }
-        };
-
+        $logger = new CollectingLogger();
         $document = $this->documentWith($message = $this->message('OrderPlaced', \stdClass::class));
 
         (new PayloadProcessor($extractor, $logger))->process($document, new DocumentContext('default'), $this->state);
@@ -86,7 +108,7 @@ final class PayloadProcessorTest extends TestCase
         $extractor->expects(self::once())
             ->method('extract')
             ->with(\stdClass::class, self::identicalTo($expectedContext))
-            ->willReturn(['type' => 'object']);
+            ->willReturn(new ExtractionResult(['type' => 'object'], []));
 
         $factory = new class ($expectedContext) implements ExtractionContextFactory {
             /** @var list<ExtractionTarget> */
@@ -137,5 +159,18 @@ final class PayloadProcessorTest extends TestCase
         $document->channels['orders'] = $channel;
 
         return $document;
+    }
+}
+
+final class CollectingLogger extends \Psr\Log\AbstractLogger
+{
+    /** @var list<string> */
+    public array $warnings = [];
+
+    public function log($level, \Stringable|string $message, array $context = []): void
+    {
+        if ($level === \Psr\Log\LogLevel::WARNING) {
+            $this->warnings[] = (string) $message;
+        }
     }
 }

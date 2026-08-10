@@ -133,6 +133,37 @@ final class AsyncApiKernelTest extends TestCase
         self::assertArrayHasKey('amountCents', $properties);
     }
 
+    public function testNestedTypesArePublishedInComponentsSchemas(): void
+    {
+        $kernel = new TestKernel(uniqid('t', true), false);
+        $kernel->boot();
+
+        $decoded = json_decode((string) $kernel->handle(Request::create('/asyncapi.json'))->getContent(), true);
+
+        $kernel->shutdown();
+
+        self::assertIsArray($decoded);
+
+        // Money is nested in both TripBooked and TripCancelled: it is defined once,
+        // and both payloads point at that single definition.
+        $schemas = $decoded['components']['schemas'] ?? null;
+        self::assertIsArray($schemas);
+        self::assertArrayHasKey('Money', $schemas);
+        self::assertSame('integer', $schemas['Money']['properties']['amount']['type'] ?? null);
+
+        foreach (['TripBooked' => 'price', 'TripCancelled' => 'refund'] as $message => $property) {
+            $payload = $decoded['components']['messages'][$message]['payload'] ?? null;
+            self::assertIsArray($payload);
+            self::assertStringContainsString(
+                '#/components/schemas/Money',
+                (string) json_encode($payload['properties'][$property] ?? null, JSON_UNESCAPED_SLASHES),
+            );
+            // The definitions block travelled to the catalog, so nothing is left behind.
+            self::assertArrayNotHasKey('definitions', $payload);
+            self::assertArrayNotHasKey('$defs', $payload);
+        }
+    }
+
     public function testItRendersTheHtmlUiWithTheConfiguredWebComponent(): void
     {
         $kernel = new TestKernel(uniqid('t', true), false);

@@ -140,16 +140,22 @@ asyncapi:
       # matches. Scoped by `transports`.
       discovery: false
 
-  # Payload schema derivation (see "Payload schemas"). Shorthand: a bare string
-  # `payload_schema_extractor: 'app.my_extractor'` sets just the service id.
-  payload_schema_extractor:
-    # Service id of the SchemaExtractor. Defaults to a built-in one
-    # (Symfony Serializer when available, else json_encode).
-    service: 'app.my_schema_extractor'
-    # Optional service implementing Payload\ExtractionContextFactory: builds the
-    # ExtractionContext (e.g. serialization groups) passed to the extractor per
-    # message. Omit it (the default) to call the extractor without a context.
-    context_factory: 'app.my_context_factory'
+  # How payload schemas are derived (see "Payload schemas").
+  schemas:
+    # Shorthand: a bare string `extractor: 'app.my_extractor'` sets just the service id.
+    extractor:
+      # Service id of the SchemaExtractor. Defaults to a built-in one
+      # (Symfony Serializer when available, else json_encode).
+      service: 'app.my_schema_extractor'
+      # Optional service implementing Payload\ExtractionContextFactory: builds the
+      # ExtractionContext (e.g. serialization groups) passed to the extractor per
+      # message. Omit it (the default) to call the extractor without a context.
+      context_factory: 'app.my_context_factory'
+
+    # A type referenced by a payload is published under its short name. When two
+    # classes would claim the same one, declare the name to use.
+    names:
+      'App\Accounting\Money': AccountingMoney
 
   # Options forwarded to the AsyncAPI web component (the HTML UI).
   ui:
@@ -212,6 +218,8 @@ can express more — see [Discovery and extending](#discovery-and-extending)):
 - Messages are grouped into **channels** by their `channel`; a message with no
   `channel` gets a channel of its own (keyed by the message `name`).
 - Each `(message, action)` yields one **operation**.
+- A type a payload references (a nested DTO) becomes a **schema** in
+  `components.schemas`, so a type shared by several messages is defined once.
 - Static parts from `document` (`info`, `servers`, …) are merged underneath.
 
 ## Payload schemas
@@ -227,13 +235,13 @@ The bundle wires a default `SchemaExtractor` for you — no setup required:
 - PHPDoc and Symfony Validator enrichers are added when their packages are present.
 
 To use your own, register it as a service and set the
-`payload_schema_extractor.service` config key to its id.
+`schemas.extractor.service` config key to its id.
 
 The serialization context is decided at extraction time, not baked into the DTO:
 *which* serialization groups (or other `ExtractionContext` capabilities) apply is
 a per-message choice that must reach the extractor.
 Supply it by implementing `Payload\ExtractionContextFactory` and wiring it via
-`payload_schema_extractor.context_factory`; its `create(ExtractionTarget,
+`schemas.extractor.context_factory`; its `create(ExtractionTarget,
 DocumentContext)` returns the `ExtractionContext` passed to the extractor (or
 `null` for none). This keeps extractor-specific knowledge (e.g. which Symfony
 Serializer groups select a payload's shape) in your code, not in the bundle.
@@ -318,6 +326,7 @@ relative to these to slot yours in:
 | `MessengerServerProcessor` | `400` | adds servers, content types and channel↔server links from Messenger transports — only when `providers.messenger.enrichment` is on |
 | `PayloadProcessor` | `-100` | derives each message's payload schema |
 | `CanonicalizeMessagesProcessor` | `-500` | hoists channel messages into `components.messages` |
+| `CanonicalizeSchemasProcessor` | `-600` | hoists the types a payload references into `components.schemas` |
 | `VersionValidationProcessor` | `-1000` | rejects an unsupported `asyncapi` version (runs last) |
 
 A processor left at the **default priority `0`** runs after discovery (the

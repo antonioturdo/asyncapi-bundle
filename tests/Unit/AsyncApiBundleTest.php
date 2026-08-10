@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Zeusi\AsyncApiBundle\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Zeusi\AsyncApiBundle\AsyncApiBundle;
 use Zeusi\AsyncApiBundle\Controller\AsyncApiController;
@@ -47,7 +48,7 @@ final class AsyncApiBundleTest extends TestCase
 
     public function testPayloadSchemaExtractorAcceptsTheScalarShorthand(): void
     {
-        $container = $this->loadWith(['payload_schema_extractor' => 'app.my_extractor']);
+        $container = $this->loadWith(['schemas' => ['extractor' => 'app.my_extractor']]);
 
         self::assertSame(
             'app.my_extractor',
@@ -59,9 +60,11 @@ final class AsyncApiBundleTest extends TestCase
     public function testPayloadSchemaExtractorWiresTheContextFactoryWhenConfigured(): void
     {
         $container = $this->loadWith([
-            'payload_schema_extractor' => [
-                'service' => 'app.my_extractor',
-                'context_factory' => 'app.my_context_factory',
+            'schemas' => [
+                'extractor' => [
+                    'service' => 'app.my_extractor',
+                    'context_factory' => 'app.my_context_factory',
+                ],
             ],
         ]);
 
@@ -69,6 +72,33 @@ final class AsyncApiBundleTest extends TestCase
             'app.my_context_factory',
             (string) $container->getDefinition(PayloadProcessor::class)->getArgument('$contextFactory'),
         );
+    }
+
+    public function testSchemaNamesAcceptsAClassToNameMap(): void
+    {
+        // Unknown keys are rejected by the config tree, so this pins the shape of
+        // the map used to resolve schema name clashes.
+        $container = $this->loadWith([
+            'schemas' => [
+                'names' => ['App\Accounting\Money' => 'AccountingMoney'],
+            ],
+        ]);
+
+        self::assertTrue($container->hasDefinition(PayloadProcessor::class));
+    }
+
+    public function testSchemaNamesRejectsANameTheSpecificationCannotAddress(): void
+    {
+        // A space makes the generated `$ref` an invalid URI reference, and a slash
+        // would split the pointer into further segments.
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('An AsyncAPI component name must match');
+
+        $this->loadWith([
+            'schemas' => [
+                'names' => ['App\Accounting\Money' => 'Accounting Money'],
+            ],
+        ]);
     }
 
     /**

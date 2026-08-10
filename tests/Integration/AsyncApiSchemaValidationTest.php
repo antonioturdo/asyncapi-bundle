@@ -13,8 +13,15 @@ use Zeusi\AsyncApiBundle\Discovery\MessageProviderInterface;
 use Zeusi\AsyncApiBundle\Document\OperationAction;
 use Zeusi\AsyncApiBundle\Generator\AsyncApiGenerator;
 use Zeusi\AsyncApiBundle\Processor\CanonicalizeMessagesProcessor;
+use Zeusi\AsyncApiBundle\Processor\CanonicalizeSchemasProcessor;
 use Zeusi\AsyncApiBundle\Processor\ConfigProcessor;
 use Zeusi\AsyncApiBundle\Processor\DiscoveryProcessor;
+use Zeusi\AsyncApiBundle\Processor\PayloadProcessor;
+use Zeusi\AsyncApiBundle\Tests\Fixtures\Payload\Car;
+use Zeusi\JsonSchemaExtractor\Discoverer\ReflectionDiscoverer;
+use Zeusi\JsonSchemaExtractor\Mapper\StandardJsonSchemaMapper;
+use Zeusi\JsonSchemaExtractor\SchemaExtractor;
+use Zeusi\JsonSchemaExtractor\Serialization\JsonEncodeSerializationStrategy;
 
 /**
  * Safety net: whatever the model and processors assemble must be a structurally
@@ -57,6 +64,53 @@ final class AsyncApiSchemaValidationTest extends TestCase
         ]);
 
         $document = json_decode((string) json_encode($generator->generate('acme')->toArray()));
+        $schema = json_decode((string) file_get_contents($schemaPath));
+
+        $error = (new Validator())->validate($document, $schema)->error();
+
+        self::assertNull(
+            $error,
+            $error === null ? '' : (string) json_encode((new ErrorFormatter())->format($error), JSON_PRETTY_PRINT),
+        );
+    }
+
+    /**
+     * The same safety net for a payload holding a nested type: its definition is
+     * hoisted into `components.schemas` and the pointer rewritten, so both the
+     * catalog key and the rewritten `$ref` have to satisfy the specification.
+     */
+    #[DataProvider('supportedVersions')]
+    public function testADocumentWithHoistedSchemasValidatesAgainstTheAsyncApiSchema(string $version, string $schemaPath): void
+    {
+        $provider = new class implements MessageProviderInterface {
+            public function provide(): iterable
+            {
+                yield new DiscoveredMessage(Car::class, OperationAction::Send, 'garage', 'Car', null, 'A car was assembled', null, 'application/json', []);
+            }
+        };
+
+        $generator = new AsyncApiGenerator([
+            new ConfigProcessor([
+                'asyncapi' => $version,
+                'info' => ['title' => 'Garage', 'version' => '1.0.0'],
+            ]),
+            new DiscoveryProcessor([$provider]),
+            new PayloadProcessor(new SchemaExtractor(
+                discoverer: new ReflectionDiscoverer(),
+                enrichers: [],
+                serializationStrategy: new JsonEncodeSerializationStrategy(),
+                mapper: new StandardJsonSchemaMapper(),
+            )),
+            new CanonicalizeMessagesProcessor(),
+            new CanonicalizeSchemasProcessor(),
+        ]);
+
+        $generated = $generator->generate('garage')->toArray();
+
+        // The nested type really was hoisted, so the validation below is meaningful.
+        self::assertArrayHasKey('Engine', $generated['components']['schemas'] ?? []);
+
+        $document = json_decode((string) json_encode($generated));
         $schema = json_decode((string) file_get_contents($schemaPath));
 
         $error = (new Validator())->validate($document, $schema)->error();
