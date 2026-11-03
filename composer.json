@@ -30,7 +30,7 @@
         "opis/json-schema": "^2.6",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
-        "phpunit/phpunit": "^10.5",
+        "phpunit/phpunit": "^13.4",
         "symfony/framework-bundle": "^6.4 || ^7.0 || ^8.0",
         "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
         "symfony/serializer": "^6.4 || ^7.0 || ^8.0",
